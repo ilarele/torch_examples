@@ -39,7 +39,7 @@ end
 
 
 
-function Trainer:train(trainset, verbose)
+function Trainer:train(trainset, validset, verbose)
     print('[Training...]')
 
     local ds_size = trainset:size(1)
@@ -70,7 +70,8 @@ function Trainer:train(trainset, verbose)
         -- report average error on epoch
         epoch_loss = epoch_loss / no_iters
         total_loss = total_loss + epoch_loss
-        self:__logging(epoch .. " epoch_loss: " .. epoch_loss, verbose)
+        self:__logging(epoch .. " train_loss   " .. epoch_loss, verbose)
+        self:test(validset, verbose)
     end
 
     local avg_loss = total_loss / self.no_epochs
@@ -80,27 +81,34 @@ end
 
 
 function Trainer:test(testset, verbose)
-    print('[Testing...]')
+    -- print('[Testing...]')
 
     local ds_size = testset:size(1)
     local no_iters = self:get_no_iters(ds_size)
     local perm_idx = torch.randperm(ds_size, 'torch.LongTensor')
 
     local avg_loss = 0
+    local avg_loss_adv = 0
     for iter = 1, no_iters do
         -- get mini-batch
         local inputs, labels = self:__next_batch(testset, iter, perm_idx)
+        local inputs_adv = self.model:adversarial_samples(inputs, labels)
 
         -- evaluate loss on this mini-batch
         local iter_loss = self.model:forward(inputs, labels)
+        local iter_loss_adv = self.model:forward(inputs_adv, labels)
 
         -- update loss
         avg_loss = avg_loss + iter_loss
+        avg_loss_adv = avg_loss_adv + iter_loss_adv
     end
 
     -- avg loss
     avg_loss = avg_loss / no_iters
-    self:__logging("test_loss " .. avg_loss, verbose)
+    avg_loss_adv = avg_loss_adv / no_iters
+
+    self:__logging("test_loss     " .. avg_loss, verbose)
+    self:__logging("test_loss_adv " .. avg_loss_adv, verbose)
     return avg_loss
 end
 

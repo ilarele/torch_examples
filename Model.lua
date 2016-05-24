@@ -1,5 +1,7 @@
 require 'nn'
 
+local autograd = require 'autograd'
+
 local Model = torch.class('nn.Model')
 
 
@@ -18,6 +20,10 @@ function Model:__load_model(opt_run_on_cuda, opt)
     self.criterion = nn.ClassNLLCriterion()
     self:run_on_cuda(opt_run_on_cuda)
     self.flatten_params, self.flatten_dloss_dparams = self.net:getParameters()
+
+    -- autograd. used for adversarial examples
+    self.autograd_model_forward, self.autograd_params = autograd.functionalize(self.net)
+    self.autograd_criterion_forward = autograd.functionalize(self.criterion)
 end
 
 
@@ -83,7 +89,6 @@ function Model:__start_feval(x)
 end
 
 
-
 function Model:__fwd_bckw_feval(inputs, labels)
     -- compute the loss
     local outputs = self.net:forward(inputs)
@@ -104,3 +109,25 @@ function Model:forward(inputs, labels)
 
     return loss
 end
+
+
+--------------------------------
+-- Generate adversarial examples
+--------------------------------
+function autograd_cost(x, self, y)
+    local y_pred = self.autograd_model_forward(self.autograd_params, x)
+    local loss = self.autograd_criterion_forward(y_pred, y)
+    return loss
+end
+
+local EPS = 10
+
+function Model:adversarial_samples(x, y)
+    local dcost_dx = autograd(autograd_cost, {optimize = true})
+
+    local dcost_dx_value, _ = dcost_dx(x, self, y)
+    local x_adv = x + EPS * dcost_dx_value/torch.norm(dcost_dx_value)
+    return x_adv
+end
+
+

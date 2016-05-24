@@ -34,7 +34,7 @@ function main(arg)
     local trainer = TrainerClass(model)
 
     -- train
-    local train_loss = trainer:train(dataset.trainset, cmd_opt.verbose)
+    local train_loss = trainer:train(dataset.trainset, dataset.validset, cmd_opt.verbose)
     local test_loss = trainer:test(dataset.testset, cmd_opt.verbose)
 end
 
