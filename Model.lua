@@ -1,6 +1,41 @@
 require 'nn'
+
 local Model = torch.class('nn.Model')
 
+
+function Model:__init()
+end
+
+function Model:__load_model(use_existing, opt_run_on_cuda, opt)
+    if not self.model_path then
+        self.model_path = "data/models/generic_model.t7"
+    end
+
+    if paths.filep(self.model_path) and use_existing then
+        self:load_me(self.model_path)
+        self:run_on_cuda(opt_run_on_cuda)
+    else
+        ------------------------------------------------------------------------------
+        -- net
+        ------------------------------------------------------------------------------
+        local net = self:__createModel(opt)
+
+        ------------------------------------------------------------------------------
+        -- INIT
+        ------------------------------------------------------------------------------
+        self.net = net
+        self.criterion = nn.ClassNLLCriterion()
+        self:run_on_cuda(opt_run_on_cuda)
+    end
+    self.flatten_params, self.flatten_dloss_dparams = self.net:getParameters()
+end
+
+
+function Model:__createModel(opt)
+    -- should be implemented in each model
+    assert(false)
+    return nil
+end
 
 function Model:save_me(obj_path)
     print("save obj to path", obj_path)
@@ -23,4 +58,55 @@ function Model:load_me(obj_path)
         return true
     end
     return false
+end
+
+function Model:feval(inputs, labels)
+    return function(x)
+        self:__start_feval(x)
+        local loss, dloss = self:__fwd_bw_feval(inputs, labels)
+        return loss, dloss
+    end
+end
+
+
+function Model:__start_feval(x)
+    if x ~= self.flatten_params then
+        self.flatten_params:copy(x)
+    end
+    self.flatten_dloss_dparams:zero()
+end
+
+
+
+
+function Model:__fwd_bw_feval(inputs, labels)
+    -- compute the loss
+    local outputs = self.net:forward(inputs)
+    local loss = self.criterion:forward(outputs, labels)
+
+    -- backpropagate the loss
+    local dloss = self.criterion:backward(outputs, labels)
+    local grad_input = self.net:backward(inputs, dloss)
+
+    return loss, self.flatten_dloss_dparams
+end
+
+
+function Model:forward(inputs, labels)
+    -- compute the loss
+    local outputs = self.net:forward(inputs)
+    local loss = self.criterion:forward(outputs, labels)
+
+    return loss
+end
+
+function Model:run_on_cuda(run)
+    if run then
+        self.net:cuda()
+        self.criterion:cuda()
+    else
+        self.net:float()
+        self.criterion:float()
+    end
+    self.flatten_params, self.flatten_dloss_dparams = self.net:getParameters()
 end

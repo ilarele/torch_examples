@@ -60,8 +60,8 @@ function Trainer:train(trainset, verbose)
 
             -- for debugging inside feval, just call it (outside the optim function)
             -- feval(model.flatten_params)
-            -- update params with model.optim_function rules
-            local _, fs = model.optim_function(feval, model.flatten_params, model.optim_params)
+            -- update params with self.optim_function rules
+            local _, fs = self.optim_function(feval, model.flatten_params, self.optim_params)
 
             -- update loss
             epoch_loss = epoch_loss + fs[1]

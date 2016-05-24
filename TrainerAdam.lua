@@ -12,8 +12,8 @@ function TrainerAdam:__init(model)
     self.max_iters = 50
     self.no_epochs = 10
 
-    model.optim_function = optim.sgd
-    model.optim_params = {learningRate = self.learn_rate}
+    self.optim_function = optim.sgd
+    self.optim_params = {learningRate = self.learn_rate}
     self.model = model
 end
 

@@ -31,9 +31,9 @@ function DatasetCifarSmall:__download_cifar10(dataset_path)
         dataset_exists = paths.dirp(dataset_path)
         if not dataset_exists then
             print('Error occured when downloading dataset. See download_cifar10 function')
-            delete_cifar10(dataset_path)
+            self:delete_cifar10(dataset_path)
         else
-            delete_cifar10("cifar.torch")
+            self:delete_cifar10("cifar.torch")
         end
     end
 
