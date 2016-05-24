@@ -10,6 +10,7 @@
 --
 
 require 'Model'
+local autograd = require 'autograd'
 
 local ModelResnetSmallCifarAdversarial, parent = torch.class('nn.ModelResnetSmallCifarAdversarial', 'nn.Model')
 
@@ -191,7 +192,8 @@ function ModelResnetSmallCifarAdversarial:feval(inputs, labels)
         self:__start_feval(x)
         local loss, dloss, grad_input = self:__fwd_bckw_feval(inputs, labels)
 
-        -- train on adversarial examples
+        -- train on adversarial examples (adversarial and fast adversarial)
+        -- local inputs_adv = inputs + 5 * torch.sign(grad_input)
         local inputs_adv = inputs + 100 * (grad_input/torch.norm(grad_input))
         local loss_adv, dloss_adv, _ = self:__fwd_bckw_feval(inputs_adv, labels)
 
@@ -213,5 +215,46 @@ function ModelResnetSmallCifarAdversarial:__fwd_bckw_feval(inputs, labels)
     local grad_input = self.net:backward(inputs, dloss)
 
     return loss, self.flatten_dloss_dparams, grad_input
+end
+
+
+
+--------------------------------
+-- Generate adversarial examples
+--------------------------------
+
+-- cost_old = f(x)
+function cost_old_x(x, self, y)
+    local y_pred = self.autograd_model_forward(self.autograd_params, x)
+    local loss = self.autograd_criterion_forward(y_pred, y)
+    return loss
+end
+
+local EPS = 10
+
+-- cost_new = f(x)
+function cost_new_x(x, self, y)
+    local dcost_old_dx = autograd(cost_old_x)
+
+    -- loss vechi
+    local loss_default = cost_old_x(x, self, y)
+
+    -- loss adversarial
+    local dcost_old_dx_value = dcost_old_dx(x, self, y)
+    print(dcost_old_dx_value:size())
+    local x_adv = x + EPS * dcost_old_dx_value/torch.norm(dcost_old_dx_value)
+    print(x_adv:size())
+    local loss_adv = cost_old_x(x_adv, self, y)
+
+    -- return sum
+    return (loss_default + loss_adv)/2
+end
+
+
+function ModelResnetSmallCifarAdversarial:adversarial_samples(x, y)
+    local dcost_new_dx = autograd(cost_new_x)
+    local dcost_dx_value, _ = dcost_new_dx(x, self, y)
+    local x_adv = x + EPS * dcost_dx_value/torch.norm(dcost_dx_value)
+    return x_adv
 end
 

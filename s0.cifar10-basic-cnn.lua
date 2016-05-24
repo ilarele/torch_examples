@@ -4,10 +4,10 @@ local DatasetClass, ModelClass, TrainerClass
 
 
 function custom_setup(arg)
-    local opt = init(arg)
-    opt.run_on_cuda = true
-    opt.reload_model = true
-    opt.verbose = true
+    local cmd_opt = init(arg)
+    cmd_opt.run_on_cuda = true
+    cmd_opt.reload_model = true
+    cmd_opt.verbose = true
 
     -----------------------------------
     -- setup dataset, model and trainer
@@ -21,22 +21,22 @@ function custom_setup(arg)
     TrainerClass = nn.TrainerAdam
     -----------------------------------
 
-    return opt
+    return cmd_opt
 end
 
 
 function main(arg)
-    -- setup options
-    local opt = custom_setup(arg)
+    -- setup cmd_options
+    local cmd_opt = custom_setup(arg)
 
     -- initialize
-    local dataset = DatasetClass(opt.run_on_cuda)
-    local model = ModelClass(#dataset.class_labels, opt.reload_model, opt.run_on_cuda)
+    local dataset = DatasetClass(cmd_opt.run_on_cuda)
+    local model = ModelClass(#dataset.class_labels, cmd_opt.reload_model, cmd_opt.run_on_cuda)
     local trainer = TrainerClass(model)
 
     -- train
-    local train_loss = trainer:train(dataset.trainset, opt.verbose)
-    local test_loss = trainer:test(dataset.testset, opt.verbose)
+    local train_loss = trainer:train(dataset.trainset, dataset.validset, cmd_opt.verbose)
+    local test_loss = trainer:test(dataset.testset, cmd_opt.verbose)
 end
 
 
