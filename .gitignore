@@ -1,0 +1,4 @@
+*.t7
+org.eclipse.ldt.prefs
+.buildpath
+.project
