@@ -3,7 +3,7 @@ require 'Model'
 local ModelBasicCNN, parent = torch.class('nn.ModelBasicCNN', 'nn.Model')
 
 
-function ModelBasicCNN:__init(no_class_labels, use_existing, opt_run_on_cuda)
+function ModelBasicCNN:__init(no_class_labels, opt_run_on_cuda)
     parent.__init(self)
 
     self.model_path = "data/models/basic_cnn.t7"
@@ -11,7 +11,7 @@ function ModelBasicCNN:__init(no_class_labels, use_existing, opt_run_on_cuda)
     local opt = {}
     opt.no_class_labels = no_class_labels
 
-    self:__load_model(use_existing, opt_run_on_cuda, opt)
+    self:__load_model(opt_run_on_cuda, opt)
 end
 
 

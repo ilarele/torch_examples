@@ -11,13 +11,14 @@
 
 require 'Model'
 
-local ModelResnetSmallCifar, parent = torch.class('nn.ModelResnetSmallCifar', 'nn.Model')
+local ModelResnetSmallCifarAdversarial, parent = torch.class('nn.ModelResnetSmallCifarAdversarial', 'nn.Model')
 
 local Max = nn.SpatialMaxPooling
 local SBatchNorm = nn.SpatialBatchNormalization
 local ReLU, Avg, Convolution
 
-function ModelResnetSmallCifar:__init(no_class_labels, opt_run_on_cuda)
+
+function ModelResnetSmallCifarAdversarial:__init(no_class_labels, opt_run_on_cuda)
     parent.__init(self)
 
     self.model_path = "data/models/resnet.t7"
@@ -41,7 +42,10 @@ function ModelResnetSmallCifar:__init(no_class_labels, opt_run_on_cuda)
 end
 
 
-function ModelResnetSmallCifar:__createModel(opt)
+
+
+
+function ModelResnetSmallCifarAdversarial:__createModel(opt)
     local depth = opt.depth
     local shortcutType = opt.shortcutType or 'B'
     local iChannels
@@ -179,4 +183,35 @@ function ModelResnetSmallCifar:__createModel(opt)
 end
 
 
+-----------
+-- Feval --
+-----------
+function ModelResnetSmallCifarAdversarial:feval(inputs, labels)
+    return function(x)
+        self:__start_feval(x)
+        local loss, dloss, grad_input = self:__fwd_bckw_feval(inputs, labels)
+
+        -- train on adversarial examples
+        local inputs_adv = inputs + 100 * (grad_input/torch.norm(grad_input))
+        local loss_adv, dloss_adv, _ = self:__fwd_bckw_feval(inputs_adv, labels)
+
+        loss = (loss + loss_adv)/2
+        dloss = dloss/2
+
+        return loss, dloss
+    end
+end
+
+
+function ModelResnetSmallCifarAdversarial:__fwd_bckw_feval(inputs, labels)
+    -- compute the loss
+    local outputs = self.net:forward(inputs)
+    local loss = self.criterion:forward(outputs, labels)
+
+    -- backpropagate the loss
+    local dloss = self.criterion:backward(outputs, labels)
+    local grad_input = self.net:backward(inputs, dloss)
+
+    return loss, self.flatten_dloss_dparams, grad_input
+end
 
