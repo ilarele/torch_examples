@@ -10,18 +10,14 @@
 --
 
 require 'Model'
-local autograd = require 'autograd'
 
-local ModelResnetSmallCifarAdversarial, parent = torch.class('nn.ModelResnetSmallCifarAdversarial', 'nn.Model')
+local ModelResnet, parent = torch.class('nn.ModelResnet', 'nn.Model')
 
 local Max = nn.SpatialMaxPooling
 local SBatchNorm = nn.SpatialBatchNormalization
 local ReLU, Avg, Convolution
 
-
-function ModelResnetSmallCifarAdversarial:__init(no_class_labels, opt_run_on_cuda)
-    parent.__init(self)
-
+function ModelResnet:__init(no_class_labels, opt_run_on_cuda)
     self.model_path = "data/models/resnet.t7"
 
     local opt = {}
@@ -40,14 +36,10 @@ function ModelResnetSmallCifarAdversarial:__init(no_class_labels, opt_run_on_cud
     end
 
     self:__load_model(opt_run_on_cuda, opt)
-
 end
 
 
-
-
-
-function ModelResnetSmallCifarAdversarial:__createModel(opt)
+function ModelResnet:__createModel(opt)
     local depth = opt.depth
     local shortcutType = opt.shortcutType or 'B'
     local iChannels
@@ -181,121 +173,6 @@ function ModelResnetSmallCifarAdversarial:__createModel(opt)
     -- tou will need it if you want to build adversarial examples
     -- model:get(1).gradInput = nil
 
-    return model
+    return model, nn.ClassNLLCriterion()
 end
 
-
------------
--- Feval --
------------
-function ModelResnetSmallCifarAdversarial:feval(inputs, labels)
-    return function(x)
-        self:__start_feval(x)
-        local loss, dloss, grad_input = self:__fwd_bckw_feval(inputs, labels)
-
-        -- train on adversarial examples (adversarial and fast adversarial)
-        -- local inputs_adv = inputs + 5 * torch.sign(grad_input)
-        local inputs_adv = inputs + 100 * (grad_input/torch.norm(grad_input))
-        local loss_adv, dloss_adv, _ = self:__fwd_bckw_feval(inputs_adv, labels)
-
-        loss = (loss + loss_adv)/2
-        dloss = dloss/2
-
-        return loss, dloss
-    end
-end
-
-
-function ModelResnetSmallCifarAdversarial:__fwd_bckw_feval(inputs, labels)
-    -- compute the loss
-    local outputs = self.net:forward(inputs)
-    local loss = self.criterion:forward(outputs, labels)
-
-    -- backpropagate the loss
-    local dloss = self.criterion:backward(outputs, labels)
-    local grad_input = self.net:backward(inputs, dloss)
-
-    return loss, self.flatten_dloss_dparams, grad_input
-end
-
-
-
---------------------------------
--- Generate adversarial examples
---------------------------------
-
--- -- cost_old = f(x)
--- function cost_old_x(x, self, y)
---    print("model_forward", #self.model_forward.module.modules)
---    print("x", x)
---    print("params", #self.autograd_params)
---    -- print(a:float())
-
---     local y_pred = self.model_forward(self.autograd_params, x)
---     local loss = self.criterion_forward(y_pred, y)
---     return loss
--- end
-
-
--- -- cost_new = f(x)
--- function cost_new_x(x, self, y)
---     local dcost_old_dx = autograd(cost_old_x)
-
---     -- loss vechi
---     print("loss_default")
---     local loss_default = cost_old_x(x, self, y)
-
---     -- loss adversarial
---     print("dcost_old_dx_value")
---     local dcost_old_dx_value = dcost_old_dx(x, self, y)
-
---     local x_adv = x + EPS * dcost_old_dx_value/torch.norm(dcost_old_dx_value)
---     print("loss_adv")
---     local loss_adv = cost_old_x(x_adv, self, y)
-
---     -- return sum
---     return (loss_default + loss_adv)/2
--- end
-
-
-local EPS = 10
-
-local autograd_model_forward, autograd_criterion_forward
-
-function costvechi_x(x, autograd_params, y)
-    local y_pred = autograd_model_forward(autograd_params, x)
-    local loss = autograd_criterion_forward(y_pred, y)
-    return loss
-end
-local dcostvechi_dx = autograd(costvechi_x, {optimize = true})
-
-
-----------------------------
-function costnou_x(x, autograd_params, y)
-
-   -- loss vechi
-   local loss_vechi = costvechi_x(x, autograd_params, y)
-
-   -- loss adversarial
-   local dcostvechi_dx_value = dcostvechi_dx(x, autograd_params, y)
-
-   local x_adv = x + EPS * dcostvechi_dx_value/torch.norm(dcostvechi_dx_value)
-   local loss_adv = costvechi_x(x_adv, autograd_params, y)
-
-   return (loss_vechi + loss_adv)/2
-end
-local dcostnou_dx = autograd(costnou_x, {optimize = true})
-
-
-
-function ModelResnetSmallCifarAdversarial:adversarial_samples(x, y)
-    autograd_model_forward = self.autograd_model_forward
-    autograd_criterion_forward = self.autograd_criterion_forward
-
-
-    local dcostnou_dx_value, loss = dcostnou_dx(x, self.autograd_params, y)
-
-    local x_adv = x + 100 * dcostnou_dx_value/torch.norm(dcostnou_dx_value)
-
-    return x_adv
-end

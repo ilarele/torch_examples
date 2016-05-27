@@ -1,7 +1,8 @@
---
--- A dataset
--- * has 3 splits: dataset.trainset, dataset.testset, dataset.validset
--- *
+--------------------
+-- Cifar10 dataset
+--------------------
+
+
 require 'paths'
 require 'Dataset'
 
@@ -9,56 +10,13 @@ require 'Dataset'
 local DatasetCifarSmall, parent = torch.class('nn.DatasetCifarSmall', 'nn.Dataset')
 
 
+---------------
+----- Init ----
+---------------
 function DatasetCifarSmall:__init(opt_run_on_cuda)
     parent.__init(self)
     self:__cifar10()
     self:run_on_cuda(opt_run_on_cuda)
-end
-
-
-function DatasetCifarSmall:__download_cifar10(dataset_path)
-    local result = false
-    local dataset_exists = paths.dirp(dataset_path)
-    if not dataset_exists then
-        os.execute('git clone https://github.com/soumith/cifar.torch ; cd cifar.torch ; th Cifar10BinToTensor.lua')
-
-        os.execute('mkdir -p data/cifar10/')
-        os.execute('mv cifar.torch/cifar10-train.t7 data/cifar10/')
-        os.execute('mv cifar.torch/cifar10-test.t7 data/cifar10/')
-
-        result = true
-
-        dataset_exists = paths.dirp(dataset_path)
-        if not dataset_exists then
-            print('Error occured when downloading dataset. See download_cifar10 function')
-            self:delete_cifar10(dataset_path)
-        else
-            self:delete_cifar10("cifar.torch")
-        end
-    end
-
-    return result
-end
-
-
-function DatasetCifarSmall:__delete_cifar10(dataset_path)
-    os.execute('rm -rf ' .. dataset_path)
-end
-
-
-function DatasetCifarSmall:__raw_cifar10_splits(trainset_path, testset_path)
-    --[[
-    Load torch datasets. Increment class labels (in torch e indexare de la 1).
-    ]]--
-    local train_and_valid_sets = torch.load(trainset_path)
-    local testset = torch.load(testset_path)
-
-    -- fix labels
-    train_and_valid_sets.label = train_and_valid_sets.label + 1
-    testset.label = testset.label + 1
-
-    local trainset, validset = self:__random_split_train_valid(train_and_valid_sets)
-    return {trainset, validset, testset}
 end
 
 
@@ -99,4 +57,65 @@ function DatasetCifarSmall:__cifar10()
 
     self:save_me(PREPROC_DATASET_PATH)
 end
+---------------
+-- END Init ---
+---------------
+
+
+--------------------
+----- Download -----
+--------------------
+function DatasetCifarSmall:__download_cifar10(dataset_path)
+    local result = false
+    local dataset_exists = paths.dirp(dataset_path)
+    if not dataset_exists then
+        os.execute('git clone https://github.com/soumith/cifar.torch ; cd cifar.torch ; th Cifar10BinToTensor.lua')
+
+        os.execute('mkdir -p data/cifar10/')
+        os.execute('mv cifar.torch/cifar10-train.t7 data/cifar10/')
+        os.execute('mv cifar.torch/cifar10-test.t7 data/cifar10/')
+
+        result = true
+
+        dataset_exists = paths.dirp(dataset_path)
+        if not dataset_exists then
+            print('Error occured when downloading dataset. See download_cifar10 function')
+            self:delete_cifar10(dataset_path)
+        else
+            self:delete_cifar10("cifar.torch")
+        end
+    end
+
+    return result
+end
+
+
+function DatasetCifarSmall:__delete_cifar10(dataset_path)
+    os.execute('rm -rf ' .. dataset_path)
+end
+--------------------
+-- END Download ----
+--------------------
+
+
+------------------------
+-- Preprocess - split --
+------------------------
+function DatasetCifarSmall:__raw_cifar10_splits(trainset_path, testset_path)
+    --[[
+    Load torch datasets. Increment class labels (in torch e indexare de la 1).
+    ]]--
+    local train_and_valid_sets = torch.load(trainset_path)
+    local testset = torch.load(testset_path)
+
+    -- fix labels
+    train_and_valid_sets.label = train_and_valid_sets.label + 1
+    testset.label = testset.label + 1
+
+    local trainset, validset = self:__random_split_train_valid(train_and_valid_sets)
+    return {trainset, validset, testset}
+end
+----------------------------
+-- END Preprocess - split --
+----------------------------
 

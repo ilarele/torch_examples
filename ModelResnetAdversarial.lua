@@ -10,18 +10,19 @@
 --
 
 require 'Model'
+local autograd = require 'autograd'
 
-local ModelResnetSmallCifar, parent = torch.class('nn.ModelResnetSmallCifar', 'nn.Model')
+local ModelResnetAdversarial, parent = torch.class('nn.ModelResnetAdversarial', 'nn.Model')
 
 local Max = nn.SpatialMaxPooling
 local SBatchNorm = nn.SpatialBatchNormalization
 local ReLU, Avg, Convolution
 
-function ModelResnetSmallCifar:__init(no_class_labels, opt_run_on_cuda)
-    parent.__init(self)
 
-    self.model_path = "data/models/resnet.t7"
-
+----------------------
+----- Init Model -----
+----------------------
+function ModelResnetAdversarial:__init(no_class_labels, opt_run_on_cuda)
     local opt = {}
     opt.depth = 20
     opt.shortcutType = 'C'
@@ -37,11 +38,11 @@ function ModelResnetSmallCifar:__init(no_class_labels, opt_run_on_cuda)
         Convolution = nn.SpatialConvolution
     end
 
-    self:__load_model(opt_run_on_cuda, opt)
+    parent.__init(self, opt_run_on_cuda, opt)
 end
 
 
-function ModelResnetSmallCifar:__createModel(opt)
+function ModelResnetAdversarial:__createModel(opt)
     local depth = opt.depth
     local shortcutType = opt.shortcutType or 'B'
     local iChannels
@@ -55,7 +56,7 @@ function ModelResnetSmallCifar:__createModel(opt)
           x_shortcut = nn.Sequential()
           x_shortcut:add(Convolution(nInputPlane, nOutputPlane, 1, 1, stride, stride))
           x_shortcut:add(SBatchNorm(nOutputPlane))
-          return x_shortcut
+          return x_shortcut, criterion
         elseif nInputPlane ~= nOutputPlane then
             -- Strided, zero-padded identity shortcut
             x_shortcut = nn.Sequential()
@@ -172,11 +173,90 @@ function ModelResnetSmallCifar:__createModel(opt)
     end
 
     -- uncomment this if you don't need grad_input
-    -- tou will need it if you want to build adversarial examples
+    -- you will need it if you want to build adversarial examples
     -- model:get(1).gradInput = nil
-
-    return model
+    return model, nn.ClassNLLCriterion()
 end
+--------------------------
+----- END Init Model -----
+--------------------------
 
 
+---------------------------------
+------------- Feval -------------
+---------------------------------
+function ModelResnetAdversarial:feval(inputs, labels)
+    -- If you override this you must override adversarial_samples() too. Otherwise, they are not computed correctly
+    return function(x)
+        -- J = (J(x) + J(x_adversarial))/2
+        if x ~= self.flatten_params then
+            self.flatten_params:copy(x)
+        end
+        self.flatten_dloss_dparams:zero()
+
+        -- normal input
+        local outputs, loss = self:forward(inputs, labels)
+        local _, grad_input = self:backward(inputs, outputs, labels)
+
+        -- adversarial input
+        local inputs_adv = inputs + 100 * (grad_input/torch.norm(grad_input))
+        local outputs_adv, loss_adv = self:forward(inputs_adv, labels)
+        local _, grad_input_adv = self:backward(inputs_adv, outputs_adv, labels)
+
+        -- weighted loss, weighted gradient
+        loss = (loss + loss_adv)/2
+        local dloss_dparams = self.flatten_dloss_dparams/2
+        local grad_input = (grad_input + grad_input_adv)/2
+
+        return loss, dloss_dparams, grad_input
+    end
+end
+---------------------------------
+----------- END Feval -----------
+---------------------------------
+
+
+--------------------------------
+----- Adversarial examples -----
+--------------------------------
+local EPS = 100
+local autograd_model_forward, autograd_criterion_forward
+
+-- cost vechi
+function oldcost_x(x, autograd_params, y)
+    local y_pred = autograd_model_forward(autograd_params, x)
+    local loss = autograd_criterion_forward(y_pred, y)
+    return loss
+end
+local doldcost_dx = autograd(oldcost_x, {optimize = true})
+
+
+-- cost nou
+function newcost_x(x, autograd_params, y)
+
+   -- loss vechi
+   local loss_vechi = oldcost_x(x, autograd_params, y)
+   local doldcost_dx_value = doldcost_dx(x, autograd_params, y)
+
+   -- loss adversarial
+   local x_adv = x + EPS * doldcost_dx_value/torch.norm(doldcost_dx_value)
+   local loss_adv = oldcost_x(x_adv, autograd_params, y)
+
+   return (loss_vechi + loss_adv)/2
+end
+local dcostnou_dx = autograd(newcost_x, {optimize = true})
+
+
+function ModelResnetAdversarial:adversarial_samples(x, y)
+    autograd_model_forward = self.autograd_model_forward
+    autograd_criterion_forward = self.autograd_criterion_forward
+
+    local dcostnou_dx_value, loss = dcostnou_dx(x, self.autograd_params, y)
+    local x_adv = x + 100 * dcostnou_dx_value/torch.norm(dcostnou_dx_value)
+
+    return x_adv
+end
+----------------------------------
+---- END Adversarial examples ----
+----------------------------------
 

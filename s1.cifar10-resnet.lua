@@ -13,11 +13,11 @@ function custom_setup(arg)
     -- setup dataset, model and trainer
     -----------------------------------
     require 'TrainerAdam'
-    require 'ModelResnetSmallCifar'
+    require 'ModelResnet'
     require 'DatasetCifarSmall'
 
     DatasetClass = nn.DatasetCifarSmall
-    ModelClass = nn.ModelResnetSmallCifar
+    ModelClass = nn.ModelResnet
     TrainerClass = nn.TrainerAdam
     -----------------------------------
 

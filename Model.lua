@@ -1,29 +1,37 @@
-require 'nn'
-
+local nn = require 'nn'
 local autograd = require 'autograd'
+
 
 local Model = torch.class('nn.Model')
 
 
-function Model:__init()
-end
-
-function Model:__load_model(opt_run_on_cuda, opt)
-    if not self.model_path then
-        self.model_path = "data/models/generic_model.t7"
-    end
-
-    local net = self:__createModel(opt)
+----------------
+-- Init Model --
+----------------
+function Model:__init(opt_run_on_cuda, opt)
+    local net, criterion = self:__createModel(opt)
 
     -- init
     self.net = net
-    self.criterion = nn.ClassNLLCriterion()
+    self.criterion = criterion
     self:run_on_cuda(opt_run_on_cuda)
     self.flatten_params, self.flatten_dloss_dparams = self.net:getParameters()
 
-    -- autograd. used for adversarial examples
+    -- autograd transofrmations, used for adversarial examples
     self.autograd_model_forward, self.autograd_params = autograd.functionalize(self.net)
     self.autograd_criterion_forward = autograd.functionalize(self.criterion)
+end
+
+
+function Model:run_on_cuda(run)
+    if run then
+        self.net:cuda()
+        self.criterion:cuda()
+    else
+        self.net:float()
+        self.criterion:float()
+    end
+    self.flatten_params, self.flatten_dloss_dparams = self.net:getParameters()
 end
 
 
@@ -33,6 +41,14 @@ function Model:__createModel(opt)
     return nil
 end
 
+--------------
+-- END Init --
+--------------
+
+
+--------------------
+-- serialization ---
+--------------------
 function Model:save_me(obj_path)
     print("save obj to path", obj_path)
     local new_obj = {}
@@ -55,50 +71,29 @@ function Model:load_me(obj_path)
     end
     return false
 end
+------------------------
+--- end serialization --
+------------------------
 
 
-function Model:run_on_cuda(run)
-    if run then
-        self.net:cuda()
-        self.criterion:cuda()
-    else
-        self.net:float()
-        self.criterion:float()
-    end
-    self.flatten_params, self.flatten_dloss_dparams = self.net:getParameters()
-end
-
-
------------
--- Feval --
------------
+---------------------------------
+------------- Feval -------------
+---------------------------------
 function Model:feval(inputs, labels)
-    return function(x)
-        self:__start_feval(x)
-        local loss, dloss = self:__fwd_bckw_feval(inputs, labels)
-        return loss, dloss
-    end
-end
-
-
-function Model:__start_feval(x)
-    if x ~= self.flatten_params then
-        self.flatten_params:copy(x)
-    end
-    self.flatten_dloss_dparams:zero()
-end
-
-
-function Model:__fwd_bckw_feval(inputs, labels)
-    -- compute the loss
-    local outputs = self.net:forward(inputs)
-    local loss = self.criterion:forward(outputs, labels)
-
+    -- forward the input
     -- backpropagate the loss
-    local dloss = self.criterion:backward(outputs, labels)
-    local grad_input = self.net:backward(inputs, dloss)
+    -- return loss, params, dJ/dX
+    return function(x)
+        if x ~= self.flatten_params then
+            self.flatten_params:copy(x)
+        end
+        self.flatten_dloss_dparams:zero()
 
-    return loss, self.flatten_dloss_dparams
+        local outputs, loss = self:forward(inputs, labels)
+        local dloss_dparams, grad_input = self:backward(inputs, outputs, labels)
+
+        return loss, dloss_dparams, grad_input
+    end
 end
 
 
@@ -107,12 +102,24 @@ function Model:forward(inputs, labels)
     local outputs = self.net:forward(inputs)
     local loss = self.criterion:forward(outputs, labels)
 
-    return loss
+    return outputs, loss
 end
 
 
+function Model:backward(inputs, outputs, labels)
+    -- compute the loss
+    local dloss = self.criterion:backward(outputs, labels)
+    local grad_input = self.net:backward(inputs, dloss)
+
+    return dloss, grad_input
+end
+---------------------------------
+----------- END Feval -----------
+---------------------------------
+
+
 --------------------------------
--- Generate adversarial examples
+------ Adversarial examples ----
 --------------------------------
 function autograd_cost(x, self, y)
     local y_pred = self.autograd_model_forward(self.autograd_params, x)
@@ -120,8 +127,8 @@ function autograd_cost(x, self, y)
     return loss
 end
 
-local EPS = 10
 
+local EPS = 100
 function Model:adversarial_samples(x, y)
     local dcost_dx = autograd(autograd_cost, {optimize = true})
 
@@ -129,5 +136,7 @@ function Model:adversarial_samples(x, y)
     local x_adv = x + EPS * dcost_dx_value/torch.norm(dcost_dx_value)
     return x_adv
 end
-
+--------------------------------
+--- End Adversarial examples ---
+--------------------------------
 

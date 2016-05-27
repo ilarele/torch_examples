@@ -1,14 +1,12 @@
 --
 -- A dataset
 -- * has 3 splits: dataset.trainset, dataset.testset, dataset.validset
--- *
+
 require 'paths'
-require 'AnyObject'
 
 
-local Dataset, parent = torch.class('nn.Dataset', 'nn.AnyObject')
+local Dataset = torch.class('nn.Dataset')
 local DATA_PATH = 'data/'
-
 
 
 function Dataset:__init(opt_run_on_cuda)
@@ -17,10 +15,30 @@ function Dataset:__init(opt_run_on_cuda)
 end
 
 
+function Dataset:run_on_cuda(run)
+    local splits = {"trainset", "validset", "testset"}
 
-----------------------------
--- common to all datasets --
-----------------------------
+    if run then
+        require 'cunn'
+        require 'cudnn'
+
+        for i = 1, 3 do
+            self[splits[i]].data = self[splits[i]].data:cuda()
+            self[splits[i]].label = self[splits[i]].label:cuda()
+        end
+    else
+        -- float precision is good enough for ML
+        for i = 1, 3 do
+            self[splits[i]].data = self[splits[i]].data:float()
+            self[splits[i]].label = self[splits[i]].label:float()
+        end
+    end
+end
+
+
+-----------------------------
+-- torch dataset interface --
+-----------------------------
 function Dataset:__comply_to_interface(dataset_split)
     -- make it indexable []
     setmetatable(dataset_split,
@@ -34,8 +52,15 @@ function Dataset:__comply_to_interface(dataset_split)
         return self.data:size(1)
     end
 end
+-------------------------------------
+---- END torch dataset interface ----
+-------------------------------------
 
 
+
+--------------------
+---- Preprocess ----
+--------------------
 function Dataset:__random_split_train_valid(train_and_valid_sets)
     -- split train in train + validation
     torch.manualSeed(1)
@@ -83,29 +108,35 @@ function Dataset:__normalize(split, mean, stdv)
     end
     return mean, stdv
 end
+------------------------
+---- END Preprocess ----
+------------------------
 
 
-
--- TODO: make it look good
-function Dataset:run_on_cuda(run)
-    if run then
-        require 'cunn'
-        require 'cudnn'
-
-        self.trainset.data = self.trainset.data:cuda()
-        self.validset.data = self.validset.data:cuda()
-        self.testset.data = self.testset.data:cuda()
-
-        self.trainset.label = self.trainset.label:cuda()
-        self.validset.label = self.validset.label:cuda()
-        self.testset.label = self.testset.label:cuda()
-    else
-        self.trainset.data = self.trainset.data:float()
-        self.validset.data = self.validset.data:float()
-        self.testset.data = self.testset.data:float()
-
-        self.trainset.label = self.trainset.label:float()
-        self.validset.label = self.validset.label:float()
-        self.testset.label = self.testset.label:float()
+--------------------
+-- serialization ---
+--------------------
+function Dataset:save_me(obj_path)
+    print("save obj to path", obj_path)
+    local new_obj = {}
+    for key, value in pairs(self) do
+        new_obj[key] = value
     end
+    torch.save(obj_path, new_obj)
 end
+
+
+function Dataset:load_me(obj_path)
+    if paths.filep(obj_path) then
+        print("load obj from path", obj_path)
+        local load_obj = torch.load(obj_path)
+        for key, value in pairs(load_obj) do
+            self[key] = value
+        end
+        return true
+    end
+    return false
+end
+------------------------
+--- END serialization --
+------------------------

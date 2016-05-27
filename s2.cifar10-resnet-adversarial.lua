@@ -13,11 +13,11 @@ function custom_setup(arg)
     -- setup dataset, model and trainer
     -----------------------------------
     require 'TrainerAdam'
-    require 'ModelResnetSmallCifarAdversarial'
+    require 'ModelResnetAdversarial'
     require 'DatasetCifarSmall'
 
     DatasetClass = nn.DatasetCifarSmall
-    ModelClass = nn.ModelResnetSmallCifarAdversarial
+    ModelClass = nn.ModelResnetAdversarial
     TrainerClass = nn.TrainerAdam
     -----------------------------------
 
@@ -35,7 +35,7 @@ function main(arg)
 
     -- train
     local train_loss = trainer:train(dataset.trainset, dataset.validset, cmd_opt.verbose)
-    local test_loss = trainer:test(dataset.testset, cmd_opt.verbose)
+    local test_loss = trainer:test(dataset.testset, cmd_opt.adversarial, cmd_opt.verbose)
 end
 
 

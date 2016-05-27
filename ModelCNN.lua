@@ -1,11 +1,9 @@
 require 'Model'
 
-local ModelBasicCNN, parent = torch.class('nn.ModelBasicCNN', 'nn.Model')
+local ModelCNN, parent = torch.class('nn.ModelCNN', 'nn.Model')
 
 
-function ModelBasicCNN:__init(no_class_labels, opt_run_on_cuda)
-    parent.__init(self)
-
+function ModelCNN:__init(no_class_labels, opt_run_on_cuda)
     self.model_path = "data/models/basic_cnn.t7"
 
     local opt = {}
@@ -15,7 +13,7 @@ function ModelBasicCNN:__init(no_class_labels, opt_run_on_cuda)
 end
 
 
-function ModelBasicCNN:__createModel(opt)
+function ModelCNN:__createModel(opt)
     local net = nn.Sequential()
     -- stage 1 : mean suppresion -> filter bank -> squashing -> max pooling
     net:add(nn.SpatialConvolution(3, 32, 5, 5))
@@ -36,9 +34,7 @@ function ModelBasicCNN:__createModel(opt)
     local params, _ = net:getParameters()
     params:normal(0, 0.1)
 
-    return net
+    return net, nn.ClassNLLCriterion()
 end
-
-
 
 
