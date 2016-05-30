@@ -4,38 +4,38 @@ local DatasetClass, ModelClass, TrainerClass
 
 
 function custom_setup(arg)
-    local cmd_opt = init(arg)
-    cmd_opt.run_on_cuda = true
-    cmd_opt.reload_model = true
-    cmd_opt.verbose = true
+   local cmdOpt = init(arg)
+   cmdOpt.runOnCuda = true
+   cmdOpt.verbose = true
+   cmdOpt.adversarial = true
 
-    -----------------------------------
-    -- setup dataset, model and trainer
-    -----------------------------------
-    require 'TrainerAdam'
-    require 'ModelResnetAdversarial'
-    require 'DatasetCifarSmall'
+   -----------------------------------
+   -- setup dataset, model and trainer
+   -----------------------------------
+   require 'TrainerAdam'
+   require 'ModelResnetAdversarial'
+   require 'DatasetCifarSmall'
 
-    DatasetClass = nn.DatasetCifarSmall
-    ModelClass = nn.ModelResnetAdversarial
-    TrainerClass = nn.TrainerAdam
-    -----------------------------------
+   DatasetClass = nn.DatasetCifarSmall
+   ModelClass = nn.ModelResnetAdversarial
+   TrainerClass = nn.TrainerAdam
+   -----------------------------------
 
-    return cmd_opt
+   return cmdOpt
 end
 
 
 function main(arg)
-    local cmd_opt = custom_setup(arg)
+   local cmdOpt = custom_setup(arg)
 
-    -- initialize
-    local dataset = DatasetClass(cmd_opt.run_on_cuda)
-    local model = ModelClass(#dataset.class_labels, cmd_opt.run_on_cuda)
-    local trainer = TrainerClass(model)
+   -- initialize
+   local dataset = DatasetClass(cmdOpt.runOnCuda)
+   local model = ModelClass(#dataset.classLabels, cmdOpt.runOnCuda)
+   local trainer = TrainerClass(model)
 
-    -- train
-    local train_loss = trainer:train(dataset.trainset, dataset.validset, cmd_opt.verbose)
-    local test_loss = trainer:test(dataset.testset, cmd_opt.adversarial, cmd_opt.verbose)
+   -- train
+   local trainLoss = trainer:train(dataset.trainset, dataset.validset, cmdOpt.adversarial, cmdOpt.verbose)
+   local testLoss = trainer:test(dataset.testset, cmdOpt.adversarial, cmdOpt.verbose)
 end
 
 
