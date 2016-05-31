@@ -1,5 +1,8 @@
 require 'optim'
-require 'Trainer'
+
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+require(folderOfThisFile .. 'Trainer')
+
 
 local TrainerAdam, parent = torch.class('nn.TrainerAdam', 'nn.Trainer')
 

@@ -13,15 +13,18 @@
 -------------------------------------------------------------------------------
 
 require 'nn'
+require 'image'
 
 
 local Trainer = torch.class('nn.Trainer')
+local FRAME_H = 300
+local FRAME_W = 300
 
 
 ---------------
 ---- Train ----
 ---------------
-function Trainer:train(trainset, validset, testAdversarial, verbose)
+function Trainer:train(trainset, validset, printAdversarial, verbose)
    print('Start Training...')
 
    local dsSize = trainset:size(1)
@@ -76,7 +79,7 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
       __logging("[Epoch " .. epoch .. "] [Train]          loss: " .. epochLoss.. "  Accuracy: " .. accuracy, verbose)
 
       -- validate
-      self:test(validset, testAdversarial, verbose)
+      self:test(validset, printAdversarial, verbose)
    end
 
    local avgLoss = totalLoss / self.noEpochs
@@ -90,8 +93,8 @@ end
 --------------
 ---- Test ----
 --------------
-function Trainer:test(testset, testAdversarial, verbose)
-   local dsSize = testset:size(1)
+function Trainer:test(dataset, printAdversarial, verbose)
+   local dsSize = dataset:size(1)
    local noIters = self:__getNoIters(dsSize)
    local permIdx = torch.randperm(dsSize, 'torch.LongTensor')
 
@@ -105,17 +108,22 @@ function Trainer:test(testset, testAdversarial, verbose)
 
    for iter = 1, noIters do
       -- get mini-batch
-      local inputs, labels = testset:nextBatch(iter, permIdx, miniBs)
+      local inputs, labels = dataset:nextBatch(iter, permIdx, miniBs)
       local iterOutputs, iterLoss = model:forward(inputs, labels)
       accuracy = accuracy + __getAccuracy(iterOutputs, labels)
       avgLoss = avgLoss + iterLoss
 
       -- evaluate loss on this mini-batch
-      if testAdversarial then
+      if printAdversarial then
          local inputsAdv = model:adversarialSamples(inputs, labels)
          local iterOutputsAdv, iterLossAdv = model:forward(inputsAdv, labels)
          accuracyAdv = accuracyAdv + __getAccuracy(iterOutputsAdv, labels)
          avgLossAdv = avgLossAdv + iterLossAdv
+
+         if iter == noIters then
+            -- show an adversarial img
+            showImageAndAdv(inputs[1], inputsAdv[1], dataset.mean, dataset.stdv)
+         end
       end
    end
 
@@ -127,9 +135,11 @@ function Trainer:test(testset, testAdversarial, verbose)
 
    __logging("\t[Test] Loss            : " .. avgLoss .. "  Accuracy: " .. accuracy, verbose)
 
-   if testAdversarial then
+   if printAdversarial then
       __logging("\t[Test] Adversarial loss: " .. avgLossAdv .. "  Accuracy: " .. accuracyAdv .. "\n", verbose)
    end
+
+
    return avgLoss
 end
 -----------------
@@ -162,6 +172,45 @@ function __logging(toPrint, verbose)
    if verbose then
       print(toPrint)
    end
+end
+
+
+function __undoPreprocess(image_tensor, mean, stdv)
+   for i = 1, 3 do
+      image_tensor[i] = image_tensor[i] * stdv[i]
+      image_tensor[i] = image_tensor[i] + mean[i]
+   end
+   return image_tensor
+end
+
+
+function __genPrintImage(image_tensor, mean, stdv)
+   local fullImg = __undoPreprocess(image_tensor, mean, stdv)
+   fullImg = fullImg:float()
+   local toPrintImg = image.scale(fullImg, FRAME_W, FRAME_H)
+   return toPrintImg
+end
+
+
+function showImage(image_tensor, mean, stdv)
+   local toPrintImg = __genPrintImage(image_tensor, mean, stdv)
+   image.display(toPrintImg)
+end
+
+
+function showImageAndAdv(image_tensor1, image_tensor2, mean, stdv)
+   local toPrintImg1 = __genPrintImage(image_tensor1, mean, stdv)
+   local toPrintImg2 = __genPrintImage(image_tensor2, mean, stdv)
+
+   local channels = toPrintImg1:size(1)
+   local h = toPrintImg1:size(2)
+   local w = toPrintImg1:size(3) * 2
+
+   local bothImages = torch.Tensor(channels, h, w)
+   bothImages[{{}, {}, {1, w/2}}] = toPrintImg1
+   bothImages[{{}, {}, {w/2+1, w}}] = toPrintImg2
+   image.display(bothImages)
+   -- io.read() -- pause
 end
 ---------------
 -- END Utils --

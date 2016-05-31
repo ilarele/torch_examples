@@ -20,7 +20,9 @@
 -- Cost <- (OldCost(input) + OldCost(inputAdversarial))/2
 -------------------------------------------------------------------------------
 
-require 'Model'
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+require(folderOfThisFile .. 'Model')
+
 local autograd = require 'autograd'
 
 local ModelResnetAdversarial, parent = torch.class('nn.ModelResnetAdversarial', 'nn.Model')
@@ -195,7 +197,7 @@ end
 --------------------------
 
 
-local EPS = 100
+local EPS = 50
 ---------------------------------
 ------------- Feval -------------
 ---------------------------------

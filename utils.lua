@@ -1,3 +1,5 @@
+require 'torch'
+
 function parseCmd(arg)
    local cmd = torch.CmdLine()
    cmd:text()
@@ -16,5 +18,8 @@ end
 function init(arg)
    local opt = parseCmd(arg)
    torch.setdefaulttensortype('torch.FloatTensor')
+   if opt.runOnCuda then
+      require 'cutorch'
+   end
    return opt
 end

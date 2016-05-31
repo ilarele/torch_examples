@@ -8,7 +8,9 @@
 -------------------------------------------------------------------------------
 
 require 'paths'
-require 'Dataset'
+
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+require(folderOfThisFile .. 'Dataset')
 
 
 local DatasetCifarSmall, parent = torch.class('nn.DatasetCifarSmall', 'nn.Dataset')
@@ -75,15 +77,16 @@ function DatasetCifarSmall:__download_cifar10(datasetPath)
       os.execute('mkdir -p data/cifar10/')
       os.execute('mv cifar.torch/cifar10-train.t7 data/cifar10/')
       os.execute('mv cifar.torch/cifar10-test.t7 data/cifar10/')
+      os.execute('rm -rf cifar.torch')
 
       result = true
 
       datasetExists = paths.dirp(datasetPath)
       if not datasetExists then
          print('Error occured when downloading dataset. See download_cifar10 function')
-         self:deleteCifar10(datasetPath)
+         self:__deleteCifar10(datasetPath)
       else
-         self:deleteCifar10("cifar.torch")
+         self:__deleteCifar10("cifar.torch/")
       end
    end
 

@@ -1,4 +1,5 @@
-require 'Model'
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+require(folderOfThisFile .. 'Model')
 
 
 local ModelCNN, parent = torch.class('nn.ModelCNN', 'nn.Model')

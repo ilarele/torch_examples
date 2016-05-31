@@ -8,11 +8,11 @@ function custom_setup(arg)
    local cmdOpt = init(arg)
 
    require 'trainers.TrainerSGD'
-   require 'models.ModelResnetAdversarial'
+   require 'models.ModelResnet'
    require 'datasets.DatasetCifarSmall'
 
    DatasetClass = nn.DatasetCifarSmall
-   ModelClass = nn.ModelResnetAdversarial
+   ModelClass = nn.ModelResnet
    TrainerClass = nn.TrainerSGD
 
    return cmdOpt

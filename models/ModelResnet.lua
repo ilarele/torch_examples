@@ -19,7 +19,8 @@
 --  The ResNet model definition (see https://github.com/facebook/fb.resnet.torch/blob/master/models/resnet.lua)
 -------------------------------------------------------------------------------
 
-require 'Model'
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+require(folderOfThisFile .. 'Model')
 
 
 local ModelResnet, parent = torch.class('nn.ModelResnet', 'nn.Model')

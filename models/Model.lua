@@ -142,7 +142,7 @@ end
 --------------------------------
 ------ Adversarial examples ----
 --------------------------------
-local EPS = 100
+local EPS = 50
 local adModelForward, adCriterionForward
 
 function adCost(x, adParams, y)

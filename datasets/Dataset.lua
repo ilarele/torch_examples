@@ -6,7 +6,9 @@
 -------------------------------------------------------------------------------
 
 require 'paths'
-require 'DatasetSplit'
+
+local folderOfThisFile = (...):match("(.-)[^%.]+$")
+require(folderOfThisFile .. 'DatasetSplit')
 
 
 local Dataset = torch.class('nn.Dataset')
@@ -66,6 +68,7 @@ function Dataset:__randomSplitTrainValid(trainAndValidSets)
 
    trainset = nn.DatasetSplit(trainset)
    validset = nn.DatasetSplit(validset)
+   print(trainset)
    return trainset, validset
 end
 ------------------------
