@@ -1,7 +1,11 @@
---------------------
--- Cifar10 dataset
---------------------
-
+-------------------------------------------------------------------------------
+-- DatasetCifarSmall
+--
+-- Cifar10 dataset loader. Download, preprocess, split into DatasetSplits
+-- {trainset, testset, validset} and save on disk.
+-- Fast loading is enabled by default. Loading from previously saved
+-- preprocessed Dataset.
+-------------------------------------------------------------------------------
 
 require 'paths'
 require 'Dataset'
@@ -46,7 +50,7 @@ function DatasetCifarSmall:__cifar10()
       local split = allSplits[splitIdx]
       mean, stdv = split:preprocess(mean, stdv)
    end
-
+   print(mean, stdv)
    self.trainset = allSplits[1]
    self.validset = allSplits[2]
    self.testset = allSplits[3]
@@ -96,12 +100,9 @@ end
 
 
 ------------------------
--- Preprocess - split --
+-- Preprocess - Split --
 ------------------------
 function DatasetCifarSmall:__rawCifar10Splits(trainsetPath, testsetPath)
-   --[[
-   Load torch datasets. Increment class labels (in torch e indexare de la 1).
-   ]]--
    local trainAndValidSets = torch.load(trainsetPath)
    local testset = torch.load(testsetPath)
 
@@ -114,6 +115,6 @@ function DatasetCifarSmall:__rawCifar10Splits(trainsetPath, testsetPath)
    return {trainset, validset, testset}
 end
 ----------------------------
--- END Preprocess - split --
+-- END Preprocess - Split --
 ----------------------------
 

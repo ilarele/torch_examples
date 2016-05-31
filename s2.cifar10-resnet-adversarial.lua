@@ -1,24 +1,24 @@
 require 'utils'
 
+
 local DatasetClass, ModelClass, TrainerClass
 
 
 function custom_setup(arg)
    local cmdOpt = init(arg)
-   cmdOpt.runOnCuda = true
-   cmdOpt.verbose = true
    cmdOpt.adversarial = true
+   cmdOpt.runOnCuda = true
 
    -----------------------------------
    -- setup dataset, model and trainer
    -----------------------------------
-   require 'TrainerAdam'
+   require 'TrainerSGD'
    require 'ModelResnetAdversarial'
    require 'DatasetCifarSmall'
 
    DatasetClass = nn.DatasetCifarSmall
    ModelClass = nn.ModelResnetAdversarial
-   TrainerClass = nn.TrainerAdam
+   TrainerClass = nn.TrainerSGD
    -----------------------------------
 
    return cmdOpt
@@ -36,6 +36,9 @@ function main(arg)
    -- train
    local trainLoss = trainer:train(dataset.trainset, dataset.validset, cmdOpt.adversarial, cmdOpt.verbose)
    local testLoss = trainer:test(dataset.testset, cmdOpt.adversarial, cmdOpt.verbose)
+
+   print("Final Train Loss: ", trainLoss)
+   print("Final Test Loss : ", testLoss)
 end
 
 

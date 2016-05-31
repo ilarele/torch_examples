@@ -1,13 +1,24 @@
---
---  Copyright (c) 2016, Facebook, Inc.
---  All rights reserved.
---
---  This source code is licensed under the BSD-style license found in the
---  LICENSE file in the root directory of this source tree. An additional grant
---  of patent rights can be found in the PATENTS file in the same directory.
---
---  The ResNet model definition
---
+-- BSD License
+
+-- For fb.resnet.torch software
+
+-- Copyright (c) 2016, Facebook, Inc. All rights reserved.
+
+-- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+--  * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+--  * Redistributions in binary form must reproduce the above copyright notice,
+--    this list of conditions and the following disclaimer in the documentation
+--    and/or other materials provided with the distribution.
+--  * Neither the name Facebook nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+-------------------------------------------------------------------------------
+--  The ResNet model definition (see https://github.com/facebook/fb.resnet.torch/blob/master/models/resnet.lua) with an adversarial cost:
+-- Cost <- (OldCost(input) + OldCost(inputAdversarial))/2
+-------------------------------------------------------------------------------
 
 require 'Model'
 local autograd = require 'autograd'
@@ -58,7 +69,7 @@ function ModelResnetAdversarial:__createModel(opt)
         x_shortcut:add(SBatchNorm(nOutputPlane))
         return x_shortcut
       elseif nInputPlane ~= nOutputPlane then
-         -- Strided, zero-padded identity shortcut
+         -- Stridden, zero-padded identity shortcut
          x_shortcut = nn.Sequential()
          x_shortcut:add(nn.SpatialAveragePooling(1, 1, stride, stride))
          x_shortcut:add(nn.Concat(2):add(nn.Identity()):add(nn.MulConstant(0)))
@@ -183,13 +194,14 @@ end
 --------------------------
 
 
+local EPS = 50
 ---------------------------------
 ------------- Feval -------------
 ---------------------------------
 function ModelResnetAdversarial:feval(inputs, labels)
    -- If you override this you must override adversarialSamples() too. Otherwise, they are not computed correctly
    return function(x)
-      -- J = (J(x) + J(xAdversarial))/2
+      -- J = (J(x) + J(xAdversarialersarial))/2
       if x ~= self.flattenParams then
          self.flattenParams:copy(x)
       end
@@ -200,7 +212,7 @@ function ModelResnetAdversarial:feval(inputs, labels)
       local _, gradInput = self:backward(inputs, outputs, labels)
 
       -- adversarial input
-      local inputsAdv = inputs + 100 * (gradInput/torch.norm(gradInput))
+      local inputsAdv = inputs + EPS * (gradInput/torch.norm(gradInput))
       local outputsAdv, lossAdv = self:forward(inputsAdv, labels)
       local _, gradInputAdv = self:backward(inputsAdv, outputsAdv, labels)
 
@@ -209,7 +221,7 @@ function ModelResnetAdversarial:feval(inputs, labels)
       local dlossDparams = self.flattenDlossDparams/2
       local gradInput = (gradInput + gradInputAdv)/2
 
-      return loss, dlossDparams, gradInput
+      return loss, dlossDparams
    end
 end
 ---------------------------------
@@ -220,42 +232,41 @@ end
 --------------------------------
 ----- Adversarial examples -----
 --------------------------------
-local EPS = 100
-local autogradModelForward, autogradCriterionForward
+local adModelForward, adCriterionForward
 
--- cost vechi
-function oldcostX(x, autogradParams, y)
-   local yPred = autogradModelForward(autogradParams, x)
-   local loss = autogradCriterionForward(yPred, y)
+-- old cost
+function oldcostX(x, adParams, y)
+   local yPred = adModelForward(adParams, x)
+   local loss = adCriterionForward(yPred, y)
    return loss
 end
 local doldcostDx = autograd(oldcostX, {optimize = true})
 
 
--- cost nou
-function newcostX(x, autogradParams, y)
+-- new cost
+function newcostX(x, adParams, y)
 
-   -- loss vechi
-   local lossVechi = oldcostX(x, autogradParams, y)
-   local dOldcostDxValue = doldcostDx(x, autogradParams, y)
+   -- old loss
+   local lossOld = oldcostX(x, adParams, y)
+   local dOldcostDxValue = doldcostDx(x, adParams, y)
 
-   -- loss adversarial
-   local xAdv = x + EPS * dOldcostDxValue/torch.norm(dOldcostDxValue)
-   local lossAdv = oldcostX(xAdv, autogradParams, y)
+   -- adversarial loss
+   local xAdversarial = x + EPS * dOldcostDxValue/torch.norm(dOldcostDxValue)
+   local lossAdv = oldcostX(xAdversarial, adParams, y)
 
-   return (lossVechi + lossAdv)/2
+   return (lossOld + lossAdv)/2
 end
 local dcostnouDx = autograd(newcostX, {optimize = true})
 
 
 function ModelResnetAdversarial:adversarialSamples(x, y)
-   autogradModelForward = self.autogradModelForward
-   autogradCriterionForward = self.autogradCriterionForward
+   adModelForward = self.adModelForward
+   adCriterionForward = self.adCriterionForward
 
-   local dcostnouDxValue, loss = dcostnouDx(x, self.autogradParams, y)
-   local xAdv = x + EPS * dcostnouDxValue / torch.norm(dcostnouDxValue)
+   local dcostnouDxValue, loss = dcostnouDx(x, self.adParams, y)
+   local xAdversarial = x + EPS * dcostnouDxValue / torch.norm(dcostnouDxValue)
 
-   return xAdv
+   return xAdversarial
 end
 ----------------------------------
 ---- END Adversarial examples ----

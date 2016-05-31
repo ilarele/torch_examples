@@ -1,6 +1,9 @@
+-------------------------------------------------------------------------------
+-- Dataset
 --
--- A dataset
--- * has 3 splits: dataset.trainset, dataset.testset, dataset.validset
+-- Generic dataset class. Each new dataset class should extend it.
+-- A Dataset object has 3 DatasetSplits: {trainset, testset, validset}.
+-------------------------------------------------------------------------------
 
 require 'paths'
 require 'DatasetSplit'
@@ -10,6 +13,9 @@ local Dataset = torch.class('nn.Dataset')
 local DATA_PATH = 'data/'
 
 
+---------------
+----- Init ----
+---------------
 function Dataset:__init()
    self.DATA_PATH = 'data/'
    self.TRAIN_VALIDATION_RATIO = 0.8
@@ -35,27 +41,9 @@ function Dataset:runOnCuda(run)
       end
    end
 end
-
-
--- -----------------------------
--- -- torch dataset interface --
--- -----------------------------
--- function Dataset:__comply_to_interface(dataset_split)
---    -- make it indexable []
---    setmetatable(dataset_split,
---       {__index = function(t, i)
---                   return {t.data[i], t.label[i]}
---                end}
---    );
-
---    -- add size()
---    function dataset_split:size()
---       return self.data:size(1)
---    end
--- end
--- -------------------------------------
--- ---- END torch dataset interface ----
--- -------------------------------------
+---------------
+-- END Init ---
+---------------
 
 
 --------------------
@@ -63,13 +51,11 @@ end
 --------------------
 function Dataset:__randomSplitTrainValid(trainAndValidSets)
    -- split train in train + validation
-   torch.manualSeed(1)
    local dsSize = trainAndValidSets.data:size(1)
    local permIdx = torch.randperm(dsSize, 'torch.LongTensor')
    local trainIdx = permIdx[{{1, dsSize * self.TRAIN_VALIDATION_RATIO}}]
    local validIdx = permIdx[{{dsSize * self.TRAIN_VALIDATION_RATIO + 1, dsSize}}]
 
-   -- trainset = trainAndValidSets
    local trainset = {}
    trainset.data = trainAndValidSets.data:index(1, trainIdx)
    trainset.label = trainAndValidSets.label:index(1, trainIdx)
@@ -78,19 +64,17 @@ function Dataset:__randomSplitTrainValid(trainAndValidSets)
    validset.data = trainAndValidSets.data:index(1, validIdx)
    validset.label = trainAndValidSets.label:index(1, validIdx)
 
-
    trainset = nn.DatasetSplit(trainset)
    validset = nn.DatasetSplit(validset)
    return trainset, validset
 end
-
 ------------------------
 ---- END Preprocess ----
 ------------------------
 
 
 --------------------
--- serialization ---
+-- Serialization ---
 --------------------
 function Dataset:saveMe(objPath)
    print("save obj to path", objPath)
@@ -114,5 +98,5 @@ function Dataset:loadMe(objPath)
    return false
 end
 ------------------------
---- END serialization --
+--- END Serialization --
 ------------------------
