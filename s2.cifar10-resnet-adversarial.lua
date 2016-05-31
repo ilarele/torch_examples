@@ -6,26 +6,21 @@ local DatasetClass, ModelClass, TrainerClass
 
 function custom_setup(arg)
    local cmdOpt = init(arg)
-   cmdOpt.adversarial = true
-   cmdOpt.runOnCuda = true
 
-   -----------------------------------
-   -- setup dataset, model and trainer
-   -----------------------------------
    require 'TrainerSGD'
-   require 'ModelResnetAdversarial'
+   require 'ModelResnet'
    require 'DatasetCifarSmall'
 
    DatasetClass = nn.DatasetCifarSmall
-   ModelClass = nn.ModelResnetAdversarial
+   ModelClass = nn.ModelResnet
    TrainerClass = nn.TrainerSGD
-   -----------------------------------
 
    return cmdOpt
 end
 
 
 function main(arg)
+   torch.manualSeed(1)
    local cmdOpt = custom_setup(arg)
 
    -- initialize
@@ -34,8 +29,8 @@ function main(arg)
    local trainer = TrainerClass(model)
 
    -- train
-   local trainLoss = trainer:train(dataset.trainset, dataset.validset, cmdOpt.adversarial, cmdOpt.verbose)
-   local testLoss = trainer:test(dataset.testset, cmdOpt.adversarial, cmdOpt.verbose)
+   local trainLoss = trainer:train(dataset.trainset, dataset.validset, cmdOpt.printAdversarial, cmdOpt.verbose)
+   local testLoss = trainer:test(dataset.testset, cmdOpt.printAdversarial, cmdOpt.verbose)
 
    print("Final Train Loss: ", trainLoss)
    print("Final Test Loss : ", testLoss)

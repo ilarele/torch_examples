@@ -26,20 +26,24 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
 
    local dsSize = trainset:size(1)
    local noIters = self:__getNoIters(dsSize)
-   local permIdx = torch.randperm(dsSize, 'torch.LongTensor')
    local totaloss = 0
-   local accuracy = 0
 
-   local flattenParams = self.model.flattenParams
-   local optimParams = self.optimParams
+   local flatParams = self.model.flatParams
    local optimFunction = self.optimFunction
+   local optimParams = self.optimParams
    local model = self.model
    local miniBs = self.miniBs
 
-   for epoch = 1, self.noEpochs do
-      local epochLoss = 0
-      local start = os.clock()
+   print("Size params", flatParams:size(1))
+   print("Train size", trainset:size(1))
+   print("Valid size", validset:size(1))
+   print("Batch size", miniBs)
+   print("Iterations per epoch", noIters)
 
+   for epoch = 1, self.noEpochs do
+      local permIdx = torch.randperm(dsSize, 'torch.LongTensor')
+
+      local epochLoss = 0
       for iter = 1, noIters do
          xlua.progress(iter, noIters)
 
@@ -50,7 +54,7 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
          local feval = model:feval(inputs, labels)
 
          -- update parameters with self.optimFunction rules
-         local _, fs = optimFunction(feval, flattenParams, optimParams)
+         local _, fs = optimFunction(feval, flatParams, optimParams)
 
          -- update loss
          epochLoss = epochLoss + fs[1]
@@ -59,13 +63,11 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
       -- report average error on epoch
       epochLoss = epochLoss / noIters
       totaloss = totaloss + epochLoss
-      accuracy = accuracy / noIters
 
-      self:__logging("[Epoch " .. epoch .. "] [Train]          loss: " .. epochLoss, verbose)
+      __logging("[Epoch " .. epoch .. "] [Train]          loss: " .. epochLoss, verbose)
 
       -- validate
       self:test(validset, testAdversarial, verbose)
-      print(os.clock() - start)
    end
 
    local avgLoss = totaloss / self.noEpochs
@@ -89,18 +91,21 @@ function Trainer:test(testset, testAdversarial, verbose)
    local accuracy = 0
    local accuracyAdv = 0
 
+   local model = self.model
+   local miniBs = self.miniBs
+
    for iter = 1, noIters do
       -- get mini-batch
-      local inputs, labels = testset:nextBatch(iter, permIdx, self.miniBs)
-      local iterOutputs, iterLoss = self.model:forward(inputs, labels)
-      accuracy = accuracy + getAccuracy(iterOutputs, labels)
+      local inputs, labels = testset:nextBatch(iter, permIdx, miniBs)
+      local iterOutputs, iterLoss = model:forward(inputs, labels)
+      accuracy = accuracy + __getAccuracy(iterOutputs, labels)
       avgLoss = avgLoss + iterLoss
 
       -- evaluate loss on this mini-batch
       if testAdversarial then
-         local inputsAdv = self.model:adversarialSamples(inputs, labels)
-         local iterOutputsAdv, iterLossAdv = self.model:forward(inputsAdv, labels)
-         accuracyAdv = accuracyAdv + getAccuracy(iterOutputsAdv, labels)
+         local inputsAdv = model:adversarialSamples(inputs, labels)
+         local iterOutputsAdv, iterLossAdv = model:forward(inputsAdv, labels)
+         accuracyAdv = accuracyAdv + __getAccuracy(iterOutputsAdv, labels)
          avgLossAdv = avgLossAdv + iterLossAdv
       end
    end
@@ -111,10 +116,10 @@ function Trainer:test(testset, testAdversarial, verbose)
    accuracy = accuracy / noIters
    accuracyAdv = accuracyAdv / noIters
 
-   self:__logging("\t[Test] Loss            : " .. avgLoss .. "  Accuracy: " .. accuracy, verbose)
+   __logging("\t[Test] Loss            : " .. avgLoss .. "  Accuracy: " .. accuracy, verbose)
 
    if testAdversarial then
-      self:__logging("\t[Test] Adversarial loss: " .. avgLossAdv .. "  Accuracy: " .. accuracyAdv .. "\n", verbose)
+      __logging("\t[Test] Adversarial loss: " .. avgLossAdv .. "  Accuracy: " .. accuracyAdv .. "\n", verbose)
    end
    return avgLoss
 end
@@ -126,23 +131,25 @@ end
 -----------
 -- Utils --
 -----------
-function getAccuracy(outputs, labels)
-   local max_proba, answers_pred = torch.max(outputs, 2)
-   local num_correct = torch.eq(answers_pred - labels, 0):sum()
-   return num_correct/labels:size(1)
+function __getAccuracy(outputs, labels)
+   local _, answersPred = torch.max(outputs, 2)
+   local numCorrect = torch.eq(answersPred - labels, 0):sum()
+   return numCorrect/labels:size(1)
 end
 
 
 function Trainer:__getNoIters(dsSize)
    local noIters = torch.floor(dsSize / self.miniBs)
+
    if noIters > self.maxIters then
       noIters = self.maxIters
    end
+
    return noIters
 end
 
 
-function Trainer:__logging(toPrint, verbose)
+function __logging(toPrint, verbose)
    if verbose then
       print(toPrint)
    end

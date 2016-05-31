@@ -1,5 +1,5 @@
-GOTO samples and run them
-- "th sample_name" (th 0.cifar10-basic-cnn.lua)
+Run sample
+- th sample.lua -runOnCuda -printAdversarial
 
 
 Details ===

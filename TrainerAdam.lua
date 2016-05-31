@@ -5,9 +5,9 @@ local TrainerAdam, parent = torch.class('nn.TrainerAdam', 'nn.Trainer')
 
 
 function TrainerAdam:__init(model)
-   self.miniBs = 128
-   self.maxIters = 50
-   self.noEpochs = 100
+   self.miniBs = 256
+   self.maxIters = 30
+   self.noEpochs = 30
 
    self.optimFunction = optim.adam
    self.optimParams = {learningRate = 0.1}

@@ -50,7 +50,7 @@ function DatasetCifarSmall:__cifar10()
       local split = allSplits[splitIdx]
       mean, stdv = split:preprocess(mean, stdv)
    end
-   print(mean, stdv)
+
    self.trainset = allSplits[1]
    self.validset = allSplits[2]
    self.testset = allSplits[3]

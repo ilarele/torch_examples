@@ -21,11 +21,13 @@
 
 require 'Model'
 
+
 local ModelResnet, parent = torch.class('nn.ModelResnet', 'nn.Model')
 
 local Max = nn.SpatialMaxPooling
 local SBatchNorm = nn.SpatialBatchNormalization
 local ReLU, Avg, Convolution
+
 
 function ModelResnet:__init(noClassLabels, optRunOnCuda)
    local opt = {}
@@ -179,7 +181,7 @@ function ModelResnet:__createModel(opt)
    end
 
    -- uncomment this if you don't need grad_input
-   -- tou will need it if you want to build adversarial examples
+   -- you will need it if you want to build adversarial examples
    -- model:get(1).gradInput = nil
 
    return model, nn.ClassNLLCriterion()

@@ -6,8 +6,8 @@
 -- The Model contains:
 -- * net - neural net architecture
 -- * criterion - evaluation criterion, cost
--- * flattenParams
--- * flattenDlossDparams
+-- * flatParams
+-- * flatDlossParams
 --
 -- Used for adversarial examples:
 -- * adModelForward - autograd (automatic differentiate) version of net:forward
@@ -36,7 +36,7 @@ function Model:__init(optRunOnCuda, opt)
    self.net = net
    self.criterion = criterion
    self:runOnCuda(optRunOnCuda)
-   self.flattenParams, self.flattenDlossDparams = self.net:getParameters()
+   self.flatParams, self.flatDlossParams = self.net:getParameters()
 
    -- autograd (automatic differentiate) transformations
    -- used for adversarial examples
@@ -47,7 +47,7 @@ end
 
 function Model:runOnCuda(run)
    -- if changes are made, net parameters pointers are changed.
-   -- so update flatten params.
+   -- so update flat params.
    if run then
       self.net:cuda()
       self.criterion:cuda()
@@ -105,15 +105,15 @@ function Model:feval(inputs, labels)
    -- back-propagate the loss
    -- return loss, params, dCost/dX (aka gradInput)
    return function(x)
-      if x ~= self.flattenParams then
-         self.flattenParams:copy(x)
+      if x ~= self.flatParams then
+         self.flatParams:copy(x)
       end
-      self.flattenDlossDparams:zero()
+      self.flatDlossParams:zero()
 
       local outputs, loss = self:forward(inputs, labels)
       local _, gradInput = self:backward(inputs, outputs, labels)
 
-      return loss, self.flattenDlossDparams
+      return loss, self.flatDlossParams
    end
 end
 
@@ -142,7 +142,7 @@ end
 --------------------------------
 ------ Adversarial examples ----
 --------------------------------
-local EPS = 50
+local EPS = 100
 local adModelForward, adCriterionForward
 
 function adCost(x, adParams, y)

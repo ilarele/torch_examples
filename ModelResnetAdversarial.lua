@@ -38,6 +38,7 @@ function ModelResnetAdversarial:__init(noClassLabels, optRunOnCuda)
    opt.depth = 20
    opt.shortcutType = 'C'
    opt.noClassLabels = noClassLabels
+   opt.cudnn = 'deterministic'
 
    if optRunOnCuda then
       ReLU = cudnn.ReLU
@@ -194,7 +195,7 @@ end
 --------------------------
 
 
-local EPS = 50
+local EPS = 100
 ---------------------------------
 ------------- Feval -------------
 ---------------------------------
@@ -202,10 +203,10 @@ function ModelResnetAdversarial:feval(inputs, labels)
    -- If you override this you must override adversarialSamples() too. Otherwise, they are not computed correctly
    return function(x)
       -- J = (J(x) + J(xAdversarialersarial))/2
-      if x ~= self.flattenParams then
-         self.flattenParams:copy(x)
+      if x ~= self.flatParams then
+         self.flatParams:copy(x)
       end
-      self.flattenDlossDparams:zero()
+      self.flatDlossParams:zero()
 
       -- normal input
       local outputs, loss = self:forward(inputs, labels)
@@ -218,7 +219,7 @@ function ModelResnetAdversarial:feval(inputs, labels)
 
       -- weighted loss, weighted gradient
       loss = (loss + lossAdv)/2
-      local dlossDparams = self.flattenDlossDparams/2
+      local dlossDparams = self.flatDlossParams/2
       local gradInput = (gradInput + gradInputAdv)/2
 
       return loss, dlossDparams
