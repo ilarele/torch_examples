@@ -113,7 +113,7 @@ function Model:feval(inputs, labels)
       local outputs, loss = self:forward(inputs, labels)
       local _, gradInput = self:backward(inputs, outputs, labels)
 
-      return loss, self.flatDlossParams
+      return loss, self.flatDlossParams, outputs
    end
 end
 

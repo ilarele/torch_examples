@@ -26,7 +26,8 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
 
    local dsSize = trainset:size(1)
    local noIters = self:__getNoIters(dsSize)
-   local totaloss = 0
+   local totalLoss = 0
+   local accuracy = 0
 
    local flatParams = self.model.flatParams
    local optimFunction = self.optimFunction
@@ -39,6 +40,7 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
    print("Valid size", validset:size(1))
    print("Batch size", miniBs)
    print("Iterations per epoch", noIters)
+   print("Optimization params", self, optimParams)
 
    for epoch = 1, self.noEpochs do
       local permIdx = torch.randperm(dsSize, 'torch.LongTensor')
@@ -50,27 +52,34 @@ function Trainer:train(trainset, validset, testAdversarial, verbose)
          -- get mini-batch
          local inputs, labels = trainset:nextBatch(iter, permIdx, miniBs)
 
-         -- get feval for this batch and model
-         local feval = model:feval(inputs, labels)
+         -- trick for getting the output out of feval
+         local outputs
+         local feval = function(x)
+            local loss, flatDlossParams
+            loss, flatDlossParams, outputs = model:feval(inputs, labels)(x)
+            return loss, flatDlossParams
+         end
 
          -- update parameters with self.optimFunction rules
          local _, fs = optimFunction(feval, flatParams, optimParams)
 
          -- update loss
          epochLoss = epochLoss + fs[1]
+         accuracy = accuracy + __getAccuracy(outputs, labels)
       end
 
       -- report average error on epoch
       epochLoss = epochLoss / noIters
-      totaloss = totaloss + epochLoss
+      accuracy = accuracy / noIters
+      totalLoss = totalLoss + epochLoss
 
-      __logging("[Epoch " .. epoch .. "] [Train]          loss: " .. epochLoss, verbose)
+      __logging("[Epoch " .. epoch .. "] [Train]          loss: " .. epochLoss.. "  Accuracy: " .. accuracy, verbose)
 
       -- validate
       self:test(validset, testAdversarial, verbose)
    end
 
-   local avgLoss = totaloss / self.noEpochs
+   local avgLoss = totalLoss / self.noEpochs
    return avgLoss
 end
 ---------------

@@ -18,5 +18,3 @@ function TrainerSGD:__init(model)
                         dampening = 0}
    self.model = model
 end
-
-

@@ -222,7 +222,7 @@ function ModelResnetAdversarial:feval(inputs, labels)
       local dlossDparams = self.flatDlossParams/2
       local gradInput = (gradInput + gradInputAdv)/2
 
-      return loss, dlossDparams
+      return loss, dlossDparams, outputs
    end
 end
 ---------------------------------
