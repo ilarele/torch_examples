@@ -11,7 +11,7 @@ local folderOfThisFile = (...):match("(.-)[^%.]+$")
 require(folderOfThisFile .. 'DatasetSplit')
 
 
-local Dataset = torch.class('nn.Dataset')
+local Dataset = torch.class('Dataset')
 local DATA_PATH = 'data/'
 
 
@@ -51,7 +51,7 @@ end
 --------------------
 ---- Preprocess ----
 --------------------
-function Dataset:__randomSplitTrainValid(trainAndValidSets)
+function Dataset:__randomSplitTrainValid(trainAndValidSets, classLabels)
    -- split train in train + validation
    local dsSize = trainAndValidSets.data:size(1)
    local permIdx = torch.randperm(dsSize, 'torch.LongTensor')
@@ -66,9 +66,8 @@ function Dataset:__randomSplitTrainValid(trainAndValidSets)
    validset.data = trainAndValidSets.data:index(1, validIdx)
    validset.label = trainAndValidSets.label:index(1, validIdx)
 
-   trainset = nn.DatasetSplit(trainset)
-   validset = nn.DatasetSplit(validset)
-   print(trainset)
+   trainset = DatasetSplit(trainset, classLabels)
+   validset = DatasetSplit(validset, classLabels)
    return trainset, validset
 end
 ------------------------

@@ -25,7 +25,7 @@ require(folderOfThisFile .. 'Model')
 
 local autograd = require 'autograd'
 
-local ModelResnetAdversarial, parent = torch.class('nn.ModelResnetAdversarial', 'nn.Model')
+local ModelResnetAdversarial, parent = torch.class('ModelResnetAdversarial', 'Model')
 
 local Max = nn.SpatialMaxPooling
 local SBatchNorm = nn.SpatialBatchNormalization
@@ -197,7 +197,6 @@ end
 --------------------------
 
 
-local EPS = 50
 ---------------------------------
 ------------- Feval -------------
 ---------------------------------
@@ -215,7 +214,7 @@ function ModelResnetAdversarial:feval(inputs, labels)
       local _, gradInput = self:backward(inputs, outputs, labels)
 
       -- adversarial input
-      local inputsAdv = inputs + EPS * (gradInput/torch.norm(gradInput))
+      local inputsAdv = inputs + self.EPS * (gradInput/torch.norm(gradInput))
       local outputsAdv, lossAdv = self:forward(inputsAdv, labels)
       local _, gradInputAdv = self:backward(inputsAdv, outputsAdv, labels)
 
@@ -235,7 +234,7 @@ end
 --------------------------------
 ----- Adversarial examples -----
 --------------------------------
-local adModelForward, adCriterionForward
+local adModelForward, adCriterionForward, EPS
 
 -- old cost
 function oldcostX(x, adParams, y)
@@ -265,6 +264,7 @@ local dcostnouDx = autograd(newcostX, {optimize = true})
 function ModelResnetAdversarial:adversarialSamples(x, y)
    adModelForward = self.adModelForward
    adCriterionForward = self.adCriterionForward
+   EPS = self.EPS
 
    local dcostnouDxValue, loss = dcostnouDx(x, self.adParams, y)
    local xAdversarial = x + EPS * dcostnouDxValue / torch.norm(dcostnouDxValue)

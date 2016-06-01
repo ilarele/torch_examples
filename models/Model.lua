@@ -16,14 +16,14 @@
 --
 -- Adversarial Examples
 -- * Simple adversarial examples are computed by adding to the Input the
--- gradient of the Cost w.r. Input.
+-- gradient of the Cost w.r.t. Input.
 -- * Default Cost is supposed to be the criterion applied (only) on input.
 -- * For a more advanced adversarial cost, see ModelResnetAdversarial.lua
 -------------------------------------------------------------------------------
 
-local nn = require 'nn'
+require 'nn'
 local autograd = require 'autograd'
-local Model = torch.class('nn.Model')
+local Model = torch.class('Model')
 
 
 ----------------
@@ -42,6 +42,7 @@ function Model:__init(optRunOnCuda, opt)
    -- used for adversarial examples
    self.adModelForward, self.adParams = autograd.functionalize(self.net)
    self.adCriterionForward = autograd.functionalize(self.criterion)
+   self.EPS = 100
 end
 
 
@@ -103,7 +104,7 @@ end
 function Model:feval(inputs, labels)
    -- forward the input
    -- back-propagate the loss
-   -- return loss, params, dCost/dX (aka gradInput)
+   -- return loss, params, dCost/dX (i.e. gradInput)
    return function(x)
       if x ~= self.flatParams then
          self.flatParams:copy(x)
@@ -142,7 +143,6 @@ end
 --------------------------------
 ------ Adversarial examples ----
 --------------------------------
-local EPS = 50
 local adModelForward, adCriterionForward
 
 function adCost(x, adParams, y)
@@ -159,7 +159,7 @@ function Model:adversarialSamples(x, y)
    local dcostDx = autograd(adCost, {optimize = true})
 
    local dcostDxValue, _ = dcostDx(x, self.adParams, y)
-   local xAdv = x + EPS * dcostDxValue/torch.norm(dcostDxValue)
+   local xAdv = x + self.EPS * dcostDxValue / torch.norm(dcostDxValue)
    return xAdv
 end
 --------------------------------

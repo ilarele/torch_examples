@@ -23,7 +23,7 @@ local folderOfThisFile = (...):match("(.-)[^%.]+$")
 require(folderOfThisFile .. 'Model')
 
 
-local ModelResnet, parent = torch.class('nn.ModelResnet', 'nn.Model')
+local ModelResnet, parent = torch.class('ModelResnet', 'Model')
 
 local Max = nn.SpatialMaxPooling
 local SBatchNorm = nn.SpatialBatchNormalization

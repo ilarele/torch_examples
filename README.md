@@ -1,5 +1,12 @@
 This repository contains samples for generating adversarial examples in torch, using autograd (https://github.com/twitter/torch-autograd) for Automatic Differentiation.
 
+###Run sample (Train/Test NN)###
+* th sample_name.lua -runOnCuda
+* th sample_name.lua -runOnCuda -printAdversarial
+* qlua sample_name.lua -runOnCuda -printAdversarial -showImages
+* -printAdversarial option takes more time (in order to compute the network outputs for the adversarial examples)
+
+
 ##Dataset##
 A dataset object has 3 DatasetSplits
 * {trainset, testset, validset}
@@ -7,8 +14,7 @@ A dataset object has 3 DatasetSplits
 
 
 ##DatasetSplits##
-* mean, stdv of the dataset
-
+* mean, stdv, classLabels for the dataset
 
 ##Model##
 A model contains the net architecture, the criterion and the feval function (forward and backward steps). It also contains code for generating adversarial examples.
@@ -16,6 +22,10 @@ A model contains the net architecture, the criterion and the feval function (for
 * criterion
 * feval(), forward(), backward()
 * adversarialSamples()
+
+###ModelResnetAdversarial###
+* trained with adversarial cost
+* evaluated on its own adversarial examples (w.r.t. its own adversarial cost)
 
 
 ##Trainer##
@@ -25,18 +35,6 @@ A trainer contains details about:
 * printing out metrics about the training (accuracy, accuracy on adversarial examples)
 * plotting adversarial images
 
-
-##Train/Test a NN##
-local dataset = DatasetClass(cmdOpt.runOnCuda)
-local model = ModelClass(#dataset.classLabels, cmdOpt.runOnCuda)
-local trainer = TrainerClass(model)
-
-local trainLoss = trainer:train(dataset.trainset, dataset.validset, cmdOpt.printAdversarial, cmdOpt.verbose)
-local testLoss = trainer:test(dataset.testset, cmdOpt.printAdversarial, cmdOpt.verbose)
-
-###Run sample###
-* th sample.lua -runOnCuda
-* -printAdversarial option takes more time (in order to compute the network outputs for the adversarial examples)
 
 ###Help###
 * th sample_name.lua -h

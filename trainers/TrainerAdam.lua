@@ -4,11 +4,11 @@ local folderOfThisFile = (...):match("(.-)[^%.]+$")
 require(folderOfThisFile .. 'Trainer')
 
 
-local TrainerAdam, parent = torch.class('nn.TrainerAdam', 'nn.Trainer')
+local TrainerAdam, parent = torch.class('TrainerAdam', 'Trainer')
 
 
 function TrainerAdam:__init(model)
-   self.miniBs = 256
+   self.miniBS = 256
    self.maxIters = 30
    self.noEpochs = 30
 

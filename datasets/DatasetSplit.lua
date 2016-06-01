@@ -6,13 +6,14 @@
 -- Contains mean and stdv tensors, used in normalization.
 -------------------------------------------------------------------------------
 
-local DatasetSplit = torch.class('nn.DatasetSplit')
+local DatasetSplit = torch.class('DatasetSplit')
 
 
-function DatasetSplit:__init(dict)
+function DatasetSplit:__init(dict, classLabels)
    assert(dict)
    self.data = dict.data
    self.label = dict.label
+   self.classLabels = classLabels
 end
 
 
@@ -86,9 +87,9 @@ end
 -----------------------------
 -- torch dataset interface --
 -----------------------------
-function DatasetSplit:__index__(i)
-   if type(i) == 'number' then
-      return {self.data[i], self.label[i]}
+function DatasetSplit:__index__(key)
+   if type(key) == 'number' then
+      return {self.data[key], self.label[key]}
    end
    return rawget(self, key)
 end
